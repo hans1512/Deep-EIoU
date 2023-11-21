@@ -1,4 +1,6 @@
 numpy
+loguru
+lap
 Cython
 h5py
 Pillow
@@ -15,3 +17,6 @@ yapf
 isort==4.3.21
 imageio
 chardet
+tabulate
+pycocotools
+thop

@@ -1,2 +1,7 @@
 YOLOX_outputs/
 yolox
+best.pt
+Testing.ipynb
+yolov8n.pt
+tracker_testing
+runs

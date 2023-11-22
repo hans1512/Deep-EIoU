@@ -10,9 +10,9 @@ sys.path.append('.')
 
 from loguru import logger
 
-from yolox.data.data_augment import preproc
+from ultralytics import YOLO
+
 from yolox.exp import get_exp
-from yolox.utils import fuse_model, get_model_info, postprocess
 from yolox.utils.visualize import plot_tracking
 from yolox.tracking_utils.timer import Timer
 
@@ -30,7 +30,7 @@ def make_parser():
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
 
     parser.add_argument(
-        "--path", default="../demo.mp4", help="path to images or video"
+        "--path", default="../2sec.mp4", help="path to images or video"
     )
     parser.add_argument(
         "--save_result",
@@ -151,6 +151,7 @@ class Predictor(object):
         self.std = (0.229, 0.224, 0.225)
 
     def inference(self, img, timer):
+        img2 = img
         img_info = {"id": 0}
         if isinstance(img, str):
             img_info["file_name"] = osp.basename(img)
@@ -163,21 +164,10 @@ class Predictor(object):
         img_info["width"] = width
         img_info["raw_img"] = img
 
-        img, ratio = preproc(img, self.test_size, self.rgb_means, self.std)
-        img_info["ratio"] = ratio
-        img = torch.from_numpy(img).unsqueeze(0).float().to(self.device)
-        if self.fp16:
-            img = img.half()  # to FP16
-
         with torch.no_grad():
             timer.tic()
-            outputs = self.model(img)
-            if self.decoder is not None:
-                outputs = self.decoder(outputs, dtype=outputs.type())
-            outputs = postprocess(
-                outputs, self.num_classes, self.confthre, self.nmsthre
-            )
-        return outputs, img_info
+            outputs2 = self.model.predict(img2, conf=0.3)
+        return outputs2, img_info
 
 def imageflow_demo(predictor, extractor, vis_folder, current_time, args):
     cap = cv2.VideoCapture(args.path)
@@ -201,15 +191,14 @@ def imageflow_demo(predictor, extractor, vis_folder, current_time, args):
             logger.info('Processing frame {} ({:.2f} fps)'.format(frame_id, 1. / max(1e-5, timer.average_time)))
         ret_val, frame = cap.read()
         if ret_val:
-            outputs, img_info = predictor.inference(frame, timer)
-            det = outputs[0].cpu().detach().numpy()
+            outputs2, img_info = predictor.inference(frame, timer)
+            det2 = outputs2[0].boxes.data.cpu().numpy()
             scale = min(1440/width, 800/height)
-            det /= scale
-            cropped_imgs = [frame[max(0,int(y1)):min(height,int(y2)),max(0,int(x1)):min(width,int(x2))] for x1,y1,x2,y2,_,_,_ in det]
+            cropped_imgs = [frame[max(0,int(y1)):min(height,int(y2)),max(0,int(x1)):min(width,int(x2))] for x1,y1,x2,y2,_,_ in det2]
             embs = extractor(cropped_imgs)
-            if det is not None:
+            if det2 is not None:
                 embs = embs.cpu().detach().numpy()
-                online_targets = tracker.update(det, embs)
+                online_targets = tracker.update(det2, embs)
                 online_tlwhs = []
                 online_ids = []
                 online_scores = []
@@ -269,55 +258,24 @@ def main(exp, args):
     if args.tsize is not None:
         exp.test_size = (args.tsize, args.tsize)
 
-    model = exp.get_model().to(args.device)
-    logger.info("Model Summary: {}".format(get_model_info(model, exp.test_size)))
-    model.eval()
+    model = YOLO('best.pt')
 
-    if not args.trt:
-        if args.ckpt is None:
-            ckpt_file = "checkpoints/best_ckpt.pth.tar"
-        else:
-            ckpt_file = args.ckpt
-        logger.info("loading checkpoint")
-        ckpt = torch.load(ckpt_file, map_location="cpu")
-        # load the model state dict
-        model.load_state_dict(ckpt["model"])
-        logger.info("loaded checkpoint done.")
-
-    if args.fuse:
-        logger.info("\tFusing model...")
-        model = fuse_model(model)
-
-    if args.fp16:
-        model = model.half()  # to FP16
-
-    if args.trt:
-        assert not args.fuse, "TensorRT model is not support model fusing!"
-        trt_file = osp.join(output_dir, "model_trt.pth")
-        assert osp.exists(
-            trt_file
-        ), "TensorRT model is not found!\n Run python3 tools/trt.py first!"
-        model.head.decode_in_inference = False
-        decoder = model.head.decode_outputs
-        logger.info("Using TensorRT to inference")
-    else:
-        trt_file = None
-        decoder = None
-
+    trt_file = None
+    decoder = None
     predictor = Predictor(model, exp, trt_file, decoder, args.device, args.fp16)
     current_time = time.localtime()
-    
+
     extractor = FeatureExtractor(
         model_name='osnet_x1_0',
         model_path = 'checkpoints/sports_model.pth.tar-60',
         device='cuda'
-    )   
+    )
 
     imageflow_demo(predictor, extractor, vis_folder, current_time, args)
 
 
 if __name__ == "__main__":
     args = make_parser().parse_args()
+    print(args)
     exp = get_exp(args.exp_file, args.name)
-
     main(exp, args)

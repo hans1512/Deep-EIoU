@@ -156,7 +156,7 @@ def imageflow_demo(model, extractor, vis_folder, current_time, args):
 
 def main():
     args = load_config('tracking_config.json')
-    model = YOLO('best.pt')
+    model = YOLO(args.detection_model)
 
     vis_folder = osp.join("tracker_testing", "track_vis")
     os.makedirs(vis_folder, exist_ok=True)

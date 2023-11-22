@@ -247,7 +247,7 @@ class Deep_EIoU(object):
         removed_stracks = []
 
         if len(output_results):
-            if output_results.shape[1] == 5:
+            if output_results.shape[1] == 6:
                 scores = output_results[:,4]
                 bboxes = output_results[:, :4]  # x1y1x2y2
             elif output_results.shape[1] == 7:

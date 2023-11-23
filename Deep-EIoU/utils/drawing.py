@@ -67,11 +67,12 @@ def draw_ellipse(image, rect, color, thickness=2):
     return image
 
 
-def plot_tracking_on_frame(image, xyxys, ids, clss, labels, ball):
+def plot_tracking_on_frame(image, xyxys, ids, clss, labels, scores, ball):
     thickness = 2
     fontscale = 0.5
+    black = Color(0, 0, 0)
 
-    for xyxy, id, cls, label in zip(xyxys, ids, clss, labels):
+    for xyxy, id, cls, label, score in zip(xyxys, ids, clss, labels, scores):
         # Convert bounding box coordinates to Rect object
         rect = Rect(xyxy[0], xyxy[1], xyxy[2], xyxy[3])
         if cls == 1:
@@ -87,10 +88,20 @@ def plot_tracking_on_frame(image, xyxys, ids, clss, labels, ball):
         cv2.putText(
             image,
             f'{id}',
-            (rect.bottom_center[0] - 10, rect.bottom_center[1] - int(0.35 * rect.width) - 5),
+            (rect.top_center[0] - 5, rect.top_center[1] - 10),
             cv2.FONT_HERSHEY_SIMPLEX,
             fontscale,
             color.bgr_tuple,
+            thickness
+        )
+        # Put confidence on the track
+        cv2.putText(
+            image,
+            "{:.2f}".format(score),
+            (rect.bottom_center[0] - 10, rect.bottom_center[1] - int(0.35 * rect.width) - 5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            fontscale,
+            black.bgr_tuple,
             thickness
         )
     if len(ball) != 0:

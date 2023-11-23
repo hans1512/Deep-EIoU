@@ -1,7 +1,5 @@
-import argparse
 import os
 import os.path as osp
-import numpy as np
 import time
 import cv2
 import torch
@@ -64,24 +62,24 @@ def inference(model, img, timer):
 
     with torch.no_grad():
         timer.tic()
-        outputs2 = model.predict(img2, conf=0.3, verbose=False)
+        outputs2 = model.predict(img2, conf=0.6, verbose=False)
     return outputs2, img_info
 
 
-def imageflow_demo(model, extractor, vis_folder, current_time, args):
-    cap = cv2.VideoCapture(args.path)
+def imageflow_demo(model, extractor, vis_folder, current_time, config):
+    cap = cv2.VideoCapture(config.path)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))  # float
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))  # float
     fps = cap.get(cv2.CAP_PROP_FPS)
     timestamp = time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
     save_folder = osp.join(vis_folder, timestamp)
     os.makedirs(save_folder, exist_ok=True)
-    save_path = osp.join(save_folder, args.path.split("/")[-1])
+    save_path = osp.join(save_folder, config.path.split("/")[-1])
     logger.info(f"video save_path is {save_path}")
     vid_writer = cv2.VideoWriter(
         save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (int(width), int(height))
     )
-    tracker = Deep_EIoU(args, frame_rate=30)
+    tracker = Deep_EIoU(config, frame_rate=30)
     timer = Timer()
     frame_id = 0
     results = []
@@ -101,25 +99,23 @@ def imageflow_demo(model, extractor, vis_folder, current_time, args):
 
                 cropped_imgs = [frame[max(0, int(y1)):min(height, int(y2)), max(0, int(x1)):min(width, int(x2))] for
                                 x1, y1, x2, y2, _, _ in detections]
-                embs = extractor(cropped_imgs)
-                embs = embs.cpu().detach().numpy()
-                online_targets = tracker.update(detections, embs)
-                online_tlwhs = []
+                embeddings = extractor(cropped_imgs)
+                embeddings = embeddings.cpu().detach().numpy()
+                online_targets = tracker.update(detections, embeddings)
                 bounding_boxes = []
                 online_ids = []
                 online_scores = []
                 for t in online_targets:
                     tlwh = t.last_tlwh
-                    tid = t.track_id
-                    if tlwh[2] * tlwh[3] > args.min_box_area:
+                    track_id = t.track_id
+                    if tlwh[2] * tlwh[3] > config.min_box_area:
                         bounding_boxes.append(
                             [tlwh[0].astype('int'), tlwh[1].astype('int'), (tlwh[0] + tlwh[2]).astype('int'),
                              (tlwh[1] + tlwh[3]).astype('int')])
-                        online_tlwhs.append(tlwh)
-                        online_ids.append(tid)
                         online_scores.append(t.score)
+                        online_ids.append(track_id)
                         results.append(
-                            f"{frame_id},{tid},{tlwh[0]:.2f},{tlwh[1]:.2f},{tlwh[2]:.2f},{tlwh[3]:.2f},{t.score:.2f},-1,-1,-1\n"
+                            f"{frame_id},{track_id},{tlwh[0]:.2f},{tlwh[1]:.2f},{tlwh[2]:.2f},{tlwh[3]:.2f},{t.score:.2f},-1,-1,-1\n"
                         )
                 timer.toc()
 
@@ -132,13 +128,13 @@ def imageflow_demo(model, extractor, vis_folder, current_time, args):
                     labels, _ = perform_kmeans_clustering(player_mean_colors, initial_centroids)
 
                 online_im = plot_tracking_on_frame(
-                    img_info['raw_img'], bounding_boxes, online_ids, classes, labels, ball
+                    img_info['raw_img'], bounding_boxes, online_ids, classes, labels, online_scores, ball
                 )
 
             else:
                 timer.toc()
                 online_im = img_info['raw_img']
-            if args.save_result:
+            if config.save_result:
                 vid_writer.write(online_im)
             ch = cv2.waitKey(1)
             if ch == 27 or ch == ord("q") or ch == ord("Q"):
@@ -147,7 +143,7 @@ def imageflow_demo(model, extractor, vis_folder, current_time, args):
             break
         frame_id += 1
 
-    if args.save_result:
+    if config.save_result:
         res_file = osp.join(vis_folder, f"{timestamp}.txt")
         with open(res_file, 'w') as f:
             f.writelines(results)
@@ -155,10 +151,10 @@ def imageflow_demo(model, extractor, vis_folder, current_time, args):
 
 
 def main():
-    args = load_config('tracking_config.json')
-    model = YOLO(args.detection_model)
+    config = load_config('tracking_config.json')
+    model = YOLO(config.detection_model)
 
-    vis_folder = osp.join("tracker_testing", "track_vis")
+    vis_folder = "tracker_testing"
     os.makedirs(vis_folder, exist_ok=True)
 
     current_time = time.localtime()
@@ -169,7 +165,7 @@ def main():
         device='cuda'
     )
 
-    imageflow_demo(model, extractor, vis_folder, current_time, args)
+    imageflow_demo(model, extractor, vis_folder, current_time, config)
 
 
 main()

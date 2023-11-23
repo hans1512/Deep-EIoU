@@ -7,7 +7,11 @@ class Rect:
 
     @property
     def bottom_center(self):
-        return (int((self.x1 + self.x2) // 2), int(self.y2))
+        return int((self.x1 + self.x2) // 2), int(self.y2)
+
+    @property
+    def top_center(self):
+        return int((self.x1 + self.x2) // 2), int(self.y1)
 
     @property
     def width(self):

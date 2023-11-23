@@ -8,14 +8,14 @@ from tracker import kalman_filter
 
 
 def merge_matches(m1, m2, shape):
-    O,P,Q = shape
+    O, P, Q = shape
     m1 = np.asarray(m1)
     m2 = np.asarray(m2)
 
     M1 = scipy.sparse.coo_matrix((np.ones(len(m1)), (m1[:, 0], m1[:, 1])), shape=(O, P))
     M2 = scipy.sparse.coo_matrix((np.ones(len(m2)), (m2[:, 0], m2[:, 1])), shape=(P, Q))
 
-    mask = M1*M2
+    mask = M1 * M2
     match = mask.nonzero()
     match = list(zip(match[0], match[1]))
     unmatched_O = tuple(set(range(O)) - set([i for i, j in match]))
@@ -48,6 +48,7 @@ def linear_assignment(cost_matrix, thresh):
     matches = np.asarray(matches)
     return matches, unmatched_a, unmatched_b
 
+
 def ious(atlbrs, btlbrs):
     """
     Compute cost based on IoU
@@ -67,17 +68,21 @@ def ious(atlbrs, btlbrs):
 
     return ious
 
-def expand(tlbr, e):
-    
-    t,l,b,r = tlbr
-    w = r-l
-    h = b-t
-    expand_w = 2*w*e + w
-    expand_h = 2*h*e + h
 
-    new_tlbr = [t-expand_h//2,l-expand_w//2,b+expand_h//2,r+expand_w//2]
+def expand(tlbr, e):
+    '''
+    Expand a top left, bottom right bounding box with an expansion factor e
+    '''
+    t, l, b, r = tlbr
+    w = r - l
+    h = b - t
+    expand_w = 2 * w * e + w
+    expand_h = 2 * h * e + h
+
+    new_tlbr = [t - expand_h // 2, l - expand_w // 2, b + expand_h // 2, r + expand_w // 2]
 
     return new_tlbr
+
 
 def eious(atlbrs, btlbrs, e):
     """
@@ -125,7 +130,8 @@ def iou_distance(atracks, btracks):
     :rtype cost_matrix np.ndarray
     """
 
-    if (len(atracks)>0 and isinstance(atracks[0], np.ndarray)) or (len(btracks) > 0 and isinstance(btracks[0], np.ndarray)):
+    if (len(atracks) > 0 and isinstance(atracks[0], np.ndarray)) or (
+            len(btracks) > 0 and isinstance(btracks[0], np.ndarray)):
         atlbrs = atracks
         btlbrs = btracks
     else:
@@ -136,6 +142,7 @@ def iou_distance(atracks, btracks):
 
     return cost_matrix
 
+
 def kalman_eiou_distance(atracks, btracks, expand):
     """
     Compute cost based on IoU
@@ -145,7 +152,8 @@ def kalman_eiou_distance(atracks, btracks, expand):
     :rtype cost_matrix np.ndarray
     """
 
-    if (len(atracks)>0 and isinstance(atracks[0], np.ndarray)) or (len(btracks) > 0 and isinstance(btracks[0], np.ndarray)):
+    if (len(atracks) > 0 and isinstance(atracks[0], np.ndarray)) or (
+            len(btracks) > 0 and isinstance(btracks[0], np.ndarray)):
         atlbrs = atracks
         btlbrs = btracks
     else:
@@ -156,6 +164,7 @@ def kalman_eiou_distance(atracks, btracks, expand):
 
     return cost_matrix
 
+
 def eiou_distance(atracks, btracks, expand):
     """
     Compute cost based on IoU
@@ -165,7 +174,8 @@ def eiou_distance(atracks, btracks, expand):
     :rtype cost_matrix np.ndarray
     """
 
-    if (len(atracks)>0 and isinstance(atracks[0], np.ndarray)) or (len(btracks) > 0 and isinstance(btracks[0], np.ndarray)):
+    if (len(atracks) > 0 and isinstance(atracks[0], np.ndarray)) or (
+            len(btracks) > 0 and isinstance(btracks[0], np.ndarray)):
         atlbrs = atracks
         btlbrs = btracks
     else:
@@ -176,6 +186,7 @@ def eiou_distance(atracks, btracks, expand):
 
     return cost_matrix
 
+
 def v_iou_distance(atracks, btracks):
     """
     Compute cost based on IoU
@@ -185,7 +196,8 @@ def v_iou_distance(atracks, btracks):
     :rtype cost_matrix np.ndarray
     """
 
-    if (len(atracks)>0 and isinstance(atracks[0], np.ndarray)) or (len(btracks) > 0 and isinstance(btracks[0], np.ndarray)):
+    if (len(atracks) > 0 and isinstance(atracks[0], np.ndarray)) or (
+            len(btracks) > 0 and isinstance(btracks[0], np.ndarray)):
         atlbrs = atracks
         btlbrs = btracks
     else:
@@ -252,7 +264,7 @@ def fuse_iou(cost_matrix, tracks, detections):
     fuse_sim = reid_sim * (1 + iou_sim) / 2
     det_scores = np.array([det.score for det in detections])
     det_scores = np.expand_dims(det_scores, axis=0).repeat(cost_matrix.shape[0], axis=0)
-    #fuse_sim = fuse_sim * (1 + det_scores) / 2
+    # fuse_sim = fuse_sim * (1 + det_scores) / 2
     fuse_cost = 1 - fuse_sim
     return fuse_cost
 

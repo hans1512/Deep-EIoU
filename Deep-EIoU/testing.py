@@ -101,7 +101,7 @@ def imageflow_demo(model, extractor, vis_folder, current_time, config):
                                 x1, y1, x2, y2, _, _ in detections]
                 embeddings = extractor(cropped_imgs)
                 embeddings = embeddings.cpu().detach().numpy()
-                online_targets = tracker.update(detections, embeddings)
+                online_targets = tracker.update(detections, embeddings, img_info['raw_img'])
                 bounding_boxes = []
                 online_ids = []
                 online_scores = []
@@ -144,9 +144,11 @@ def imageflow_demo(model, extractor, vis_folder, current_time, config):
         frame_id += 1
 
     if config.save_result:
+        config_for_run = osp.join(save_folder, "config_for_run.txt")
         res_file = osp.join(vis_folder, f"{timestamp}.txt")
         with open(res_file, 'w') as f:
             f.writelines(results)
+        config.write_to_file(config_for_run)
         logger.info(f"save results to {res_file}")
 
 

@@ -2,7 +2,7 @@
   "detection_model": "../detection/best.pt",
   "experiment_name": null,
   "name": null,
-  "path": "../2sec.mp4",
+  "path": "../1min_aalesund.mp4",
   "save_result": true,
   "exp_file": "yolox/yolox_x_ch_sportsmot.py",
   "ckpt": null,
@@ -17,13 +17,15 @@
   "track_high_thresh": 0.6,
   "track_low_thresh": 0.1,
   "new_track_thresh": 0.7,
-  "track_buffer": 60,
+  "track_buffer": 600,
   "match_thresh": 0.8,
   "aspect_ratio_thresh": 1.6,
   "min_box_area": 10,
   "nms_thres": 0.7,
   "mot20": false,
   "with_reid": true,
-  "proximity_thresh": 0.5,
-  "appearance_thresh": 0.25
+  "proximity_thresh": 0.8,
+  "appearance_thresh": 0.7,
+  "cmc_method": "orb",
+  "ablation":false
 }

@@ -4,7 +4,7 @@ from collections import deque
 from tracker import matching
 from tracker.basetrack import BaseTrack, TrackState
 from tracker.kalman_filter import KalmanFilter
-
+from tracker.gmc import GMC
 from collections import defaultdict
 
 
@@ -233,7 +233,9 @@ class Deep_EIoU(object):
         self.proximity_thresh = args.proximity_thresh
         self.appearance_thresh = args.appearance_thresh
 
-    def update(self, output_results, embedding):
+        self.gmc = GMC(method=args.cmc_method, verbose=[args.name, args.ablation])
+
+    def update(self, output_results, embedding, img):
         
         '''
         output_results : [x1,y1,x2,y2,score] type:ndarray
@@ -301,8 +303,16 @@ class Deep_EIoU(object):
         ''' Step 2: First association, with high score detection boxes'''
         strack_pool = joint_stracks(tracked_stracks, self.lost_stracks)
 
+        # Predict the current location with KF
+        STrack.multi_predict(strack_pool)
+
+        # Fix camera motion
+        warp = self.gmc.apply(img, dets)
+        STrack.multi_gmc(strack_pool, warp)
+        STrack.multi_gmc(unconfirmed, warp)
+
         # Associate with high score detection boxes
-        num_iteration = 2
+        num_iteration = 3
         init_expand_scale = 0.7
         expand_scale_step = 0.1
 
